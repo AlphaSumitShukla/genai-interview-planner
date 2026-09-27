@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.env
+.env.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# System / IDE
+.DS_Store
+.vscode/
+.idea/
