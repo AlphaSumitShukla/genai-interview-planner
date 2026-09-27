@@ -124,9 +124,3 @@ yt-genai/
 ## 🛡️ Environment & Security Note
 
 > **IMPORTANT**: Never commit your `.env` files to public repositories. Ensure `.gitignore` includes all `.env*` files to protect your database credentials and API keys.
-
----
-
-## 📄 License
-
-This project is licensed under the ISC License.
