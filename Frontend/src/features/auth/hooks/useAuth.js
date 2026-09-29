@@ -8,7 +8,6 @@ import {
 } from "../services/auth.api";
 
 export const useAuth = () => {
-
     const context = useContext(AuthContext);
 
     const {
@@ -28,9 +27,10 @@ export const useAuth = () => {
             });
 
             setUser(data.user);
-
+            return data;
         } catch (error) {
             console.error("Login failed:", error);
+            throw error;
         } finally {
             setLoading(false);
         }
@@ -50,10 +50,10 @@ export const useAuth = () => {
                 password
             });
 
-            setUser(data.user);
-
+            return data;
         } catch (error) {
             console.error("Registration failed:", error);
+            throw error;
         } finally {
             setLoading(false);
         }
@@ -75,9 +75,7 @@ export const useAuth = () => {
     };
 
     useEffect(() => {
-
         const getAndSetUser = async () => {
-
             try {
                 const data = await getMe();
 
@@ -91,7 +89,6 @@ export const useAuth = () => {
         };
 
         getAndSetUser();
-
     }, []);
 
     return {

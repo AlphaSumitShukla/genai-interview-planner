@@ -1,68 +1,142 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from "react-router"
-import { useAuth } from '../hooks/useAuth'
-
-
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import "../auth.form.scss";
 
 const Register = () => {
-    const navigate = useNavigate();
-    const [username, setUsername] = useState("")
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { loading, handleRegister } = useAuth();
 
-    const { loading, handleRegister } = useAuth()
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        // Handle registration logic here
-        await handleRegister({ username, email, password })
-        navigate("/")
+  // Pre-fill email if passed from login popup
+  useEffect(() => {
+    if (location.state?.email) {
+      setEmail(location.state.email);
+    }
+  }, [location.state]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !email.trim() || !password) {
+      setErrorMsg("All fields are required.");
+      return;
     }
 
-    if (loading) {
-        return (<main><h1>Loading.....</h1></main>)
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      return;
     }
 
-    return (
-        <main>
-            <div className="form-container">
-                <h1>Register</h1>
+    try {
+      setActionLoading(true);
+      setErrorMsg("");
 
+      await handleRegister({
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      });
 
+      // Redirect user to login page with pre-filled email and success message
+      navigate("/login", {
+        state: {
+          message: "Account created successfully! Please sign in to continue.",
+          registeredEmail: email.trim(),
+        },
+      });
+    } catch (err) {
+      setErrorMsg(
+        err.response?.data?.message || "Registration failed. Please try again."
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-                <form onSubmit={handleSubmit}>
-                    <div className="input-group">
-                        <label htmlFor="username">Username</label>
-                        <input
-                            onChange={(e) => { setUsername(e.target.value) }}
-                            type="text" name="username" id="username" placeholder="Enter your username" />
-                    </div>
-                    <div className="input-group">
-                        <label htmlFor="email">Email</label>
-                        <input
-                            onChange={(e) => { setEmail(e.target.value) }}
-                            type="email" name="email" id="email" placeholder="Enter your email" />
-                    </div>
+  return (
+    <main>
+      <div className="form-container">
+        <h1>Create Account</h1>
 
-                    <div className="input-group">
-                        <label htmlFor="password">Password</label>
-                        <input
-                            onChange={(e) => { setPassword(e.target.value) }}
-                            type="password" name="password" id="password" placeholder="Enter your password" />
-                    </div>
+        {errorMsg && (
+          <div className="alert-box alert-error" role="alert">
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
-                    <button className="button primary-button" type="submit">Register</button>
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              type="text"
+              name="username"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="Choose a username"
+              autoComplete="username"
+              required
+            />
+          </div>
 
+          <div className="input-group">
+            <label htmlFor="email">Email Address</label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="name@example.com"
+              autoComplete="email"
+              required
+            />
+          </div>
 
-                </form>
+          <div className="input-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="Create a password (min. 6 characters)"
+              autoComplete="new-password"
+              required
+            />
+          </div>
 
-                <p>Already have an account? <Link to="/login">Login</Link></p>
+          <button
+            className="button primary-button"
+            type="submit"
+            disabled={actionLoading || loading}
+          >
+            {actionLoading ? "Creating Account..." : "Register"}
+          </button>
+        </form>
 
-            </div>
-        </main>
+        <p>
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
+      </div>
+    </main>
+  );
+};
 
-    )
-}
-
-export default Register
+export default Register;

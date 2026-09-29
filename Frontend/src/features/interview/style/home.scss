@@ -76,6 +76,91 @@ $font-stack: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, s
     align-items: center;
 
 
+    .top-navbar {
+        width: 100%;
+        max-width: 1140px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 0.75rem 1.25rem;
+        background: rgba(22, 27, 34, 0.85);
+        border: 1px solid rgba(42, 51, 72, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 14px;
+        box-sizing: border-box;
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #f0f6fc;
+
+            .brand-icon {
+                font-size: 1.2rem;
+            }
+        }
+
+        .navbar-user-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+
+            .user-badge {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: #0d1117;
+                border: 1px solid #2a3348;
+                padding: 0.35rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.85rem;
+
+                .user-avatar {
+                    width: 24px;
+                    height: 24px;
+                    background: $accent-gradient;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #fff;
+                }
+
+                .user-name {
+                    color: #c9d1d9;
+                    font-weight: 600;
+                }
+            }
+
+            .logout-btn {
+                background: transparent;
+                border: 1px solid rgba(248, 81, 73, 0.35);
+                color: #ff7b72;
+                padding: 0.45rem 0.85rem;
+                border-radius: 10px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                transition: all 0.2s ease;
+                font-family: inherit;
+
+                &:hover {
+                    background: rgba(248, 81, 73, 0.15);
+                    border-color: #f85149;
+                }
+            }
+        }
+    }
+
     .page-header {
         text-align: center;
         max-width: 760px;
