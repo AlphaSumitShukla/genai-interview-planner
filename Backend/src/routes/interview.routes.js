@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const mongoose = require("mongoose");
-const pdfParse = require("pdf-parse");
+const { extractTextFromPdf } = require("../services/pdf.service");
 const { generateInterviewReport, generateResumePdf } = require("../services/ai.service");
 const interviewReportModel = require("../models/interviewReport.model");
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -13,15 +13,7 @@ async function generateInterViewReportController(req, res) {
     try {
         let resumeText = "";
         if (req.file) {
-            try {
-                const parser = new pdfParse.PDFParse({ data: req.file.buffer });
-                const resumeContent = await parser.getText();
-                await parser.destroy();
-                resumeText = resumeContent.text;
-            } catch (err) {
-                const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText();
-                resumeText = resumeContent.text;
-            }
+            resumeText = await extractTextFromPdf(req.file.buffer);
         }
 
         const { selfDescription, jobDescription } = req.body;

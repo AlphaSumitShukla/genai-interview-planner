@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const pdfParse = require("pdf-parse");
+const { extractTextFromPdf } = require("../services/pdf.service");
 const generateInterviewReport = require("../services/ai.service");
 const interviewReportModel = require("../models/interviewReport.model");
 
@@ -9,9 +9,7 @@ async function generateInterviewReportController(req, res) {
             return res.status(400).json({ message: "Resume PDF is required" });
         }
 
-        const parser = new pdfParse.PDFParse({ data: req.file.buffer });
-        const resumeContent = await parser.getText();
-        await parser.destroy();
+        const resumeText = await extractTextFromPdf(req.file.buffer);
 
         const { selfDescription, jobDescription } = req.body;
 
@@ -20,14 +18,14 @@ async function generateInterviewReportController(req, res) {
         }
 
         const interviewReportByAi = await generateInterviewReport({
-            resume: resumeContent.text,
+            resume: resumeText,
             selfDescription: selfDescription || "",
             jobDescription,
         });
 
         const interviewReport = await interviewReportModel.create({
             user: req.user.id,
-            resume: resumeContent.text,
+            resume: resumeText,
             selfDescription: selfDescription || "",
             jobDescription,
             ...interviewReportByAi,

@@ -31,7 +31,7 @@ An end-to-end full-stack AI platform designed to help job seekers prepare thorou
 - **Runtime**: [Node.js](https://nodejs.org/) & [Express 5](https://expressjs.com/)
 - **Database**: [MongoDB](https://www.mongodb.com/) via Mongoose ODM
 - **AI Engine**: [Google Gemini API](https://ai.google.dev/) (`@google/genai`) with structured JSON schema output validation ([Zod](https://zod.dev/))
-- **File & PDF Processing**: `multer`, `pdf-parse`, `pdfkit`
+- **File & PDF Processing**: `multer`, `unpdf` (serverless-compatible), `pdfkit`
 - **Auth & Security**: `jsonwebtoken`, `bcryptjs`, `cookie-parser`
 
 ---

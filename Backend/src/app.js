@@ -1,3 +1,14 @@
+// Polyfill browser globals for headless Node.js serverless runtimes
+if (typeof globalThis.DOMMatrix === "undefined") {
+    globalThis.DOMMatrix = class DOMMatrix {};
+}
+if (typeof globalThis.ImageData === "undefined") {
+    globalThis.ImageData = class ImageData {};
+}
+if (typeof globalThis.Path2D === "undefined") {
+    globalThis.Path2D = class Path2D {};
+}
+
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
