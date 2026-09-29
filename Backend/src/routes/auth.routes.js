@@ -32,4 +32,11 @@ authRouter.get('/logout', authController.logoutUserController);
  */
 authRouter.get('/get-me', authMiddleware.authUser, authController.getMeController);
 
+/**
+ * @route GET /api/auth/mail-health
+ * @description Safe diagnostic check for Gmail OAuth2 configuration
+ * @access Public
+ */
+authRouter.get('/mail-health', authController.verifyMailHealthController);
+
 module.exports = authRouter;

@@ -8,6 +8,15 @@ const MailComposer = require("nodemailer/lib/mail-composer");
 let cachedAccessToken = null;
 let tokenExpiresAt = 0;
 
+function getEmailCredentials() {
+    const clientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+    const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
+    const refreshToken = (process.env.GOOGLE_REFRESH_TOKEN || "").trim();
+    const emailUser = (process.env.EMAIL_USER || "").trim();
+
+    return { clientId, clientSecret, refreshToken, emailUser };
+}
+
 /**
  * Obtain a fresh Google OAuth2 access token using refresh token.
  */
@@ -17,31 +26,49 @@ async function getAccessToken() {
         return cachedAccessToken;
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const { clientId, clientSecret, refreshToken, emailUser } = getEmailCredentials();
 
-    if (!clientId || !clientSecret || !refreshToken) {
-        throw new Error("Missing Google OAuth credentials in environment variables (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN)");
+    const missing = [];
+    if (!clientId) missing.push("GOOGLE_CLIENT_ID");
+    if (!clientSecret) missing.push("GOOGLE_CLIENT_SECRET");
+    if (!refreshToken) missing.push("GOOGLE_REFRESH_TOKEN");
+
+    if (missing.length > 0) {
+        throw new Error(`Missing required Google OAuth credentials in environment variables: ${missing.join(", ")}`);
     }
 
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken,
-            grant_type: "refresh_token"
-        })
-    });
+    let response;
+    try {
+        response = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                refresh_token: refreshToken,
+                grant_type: "refresh_token"
+            })
+        });
+    } catch (networkErr) {
+        console.error("[MAIL SERVICE NETWORK ERROR] Failed to reach Google OAuth endpoint:", networkErr.message);
+        throw new Error(`Google OAuth2 connection failed: ${networkErr.message}`);
+    }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok || !data.access_token) {
-        throw new Error(data.error_description || data.error || "Failed to obtain access token from Google");
+        const errorDesc = data.error_description || data.error || `HTTP ${response.status} ${response.statusText}`;
+        console.error(`[MAIL SERVICE ERROR] Google OAuth2 token exchange rejected (${response.status}):`, errorDesc);
+
+        if (data.error === "invalid_grant") {
+            throw new Error("Google OAuth2 refresh token is expired, revoked, or invalid (invalid_grant). Please regenerate GOOGLE_REFRESH_TOKEN.");
+        }
+        if (data.error === "invalid_client" || data.error === "unauthorized_client") {
+            throw new Error(`Google OAuth2 Client ID or Client Secret is rejected by Google (${data.error}).`);
+        }
+        throw new Error(`Failed to obtain Google access token: ${errorDesc}`);
     }
 
     cachedAccessToken = data.access_token;
@@ -60,7 +87,12 @@ async function getAccessToken() {
 async function sendMail({ to, subject, html, text, headers = {} }) {
     console.log(`[MAIL SERVICE] Initiating send to: ${to} | Subject: "${subject}"`);
     const accessToken = await getAccessToken();
-    const fromEmail = process.env.EMAIL_USER || "no-reply@genai-planner.com";
+    const { emailUser } = getEmailCredentials();
+    const fromEmail = emailUser || "no-reply@genai-planner.com";
+
+    if (!emailUser) {
+        console.warn("[MAIL SERVICE WARNING] EMAIL_USER is not set in environment variables. Gmail API may reject messages sent from unverified addresses.");
+    }
 
     const mail = new MailComposer({
         from: `"GenAI Interview Planner" <${fromEmail}>`,
@@ -96,11 +128,12 @@ async function sendMail({ to, subject, html, text, headers = {} }) {
         })
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-        console.error(`[MAIL SERVICE ERROR] Gmail API responded with status ${response.status}:`, result);
-        throw new Error(result.error?.message || "Failed to send email via Gmail API");
+        const errorMsg = result.error?.message || `HTTP ${response.status} ${response.statusText}`;
+        console.error(`[MAIL SERVICE ERROR] Gmail API responded with status ${response.status}:`, errorMsg);
+        throw new Error(`Gmail API error (${response.status}): ${errorMsg}`);
     }
 
     console.log(`[MAIL SERVICE SUCCESS] Message sent via Gmail API! ID: ${result.id} | Labels: ${JSON.stringify(result.labelIds)}`);
@@ -377,9 +410,58 @@ async function sendWelcomeEmail(toEmail, username) {
     });
 }
 
+/**
+ * Diagnostic helper to safely test and report Gmail OAuth2 configuration
+ * without exposing sensitive tokens or secrets.
+ */
+async function verifyEmailServiceConfig() {
+    const { clientId, clientSecret, refreshToken, emailUser } = getEmailCredentials();
+    const missing = [];
+    if (!clientId) missing.push("GOOGLE_CLIENT_ID");
+    if (!clientSecret) missing.push("GOOGLE_CLIENT_SECRET");
+    if (!refreshToken) missing.push("GOOGLE_REFRESH_TOKEN");
+    if (!emailUser) missing.push("EMAIL_USER");
+
+    const envConfigured = {
+        EMAIL_USER: !!emailUser,
+        GOOGLE_CLIENT_ID: !!clientId,
+        GOOGLE_CLIENT_SECRET: !!clientSecret,
+        GOOGLE_REFRESH_TOKEN: !!refreshToken,
+    };
+
+    if (missing.length > 0) {
+        return {
+            ready: false,
+            authenticated: false,
+            message: `Missing required environment variables: ${missing.join(", ")}`,
+            envConfigured
+        };
+    }
+
+    try {
+        await getAccessToken();
+        const maskedSender = emailUser.replace(/(.{2})(.*)(@.*)/, "$1***$3");
+        return {
+            ready: true,
+            authenticated: true,
+            message: "Gmail OAuth2 authenticated successfully.",
+            sender: maskedSender,
+            envConfigured
+        };
+    } catch (err) {
+        return {
+            ready: false,
+            authenticated: false,
+            message: err.message,
+            envConfigured
+        };
+    }
+}
+
 module.exports = {
     getAccessToken,
     sendMail,
     sendOtpEmail,
-    sendWelcomeEmail
+    sendWelcomeEmail,
+    verifyEmailServiceConfig
 };

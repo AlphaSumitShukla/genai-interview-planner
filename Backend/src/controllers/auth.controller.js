@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model");
 const tokenBlacklistModel = require("../models/blacklist.model");
-const { sendWelcomeEmail } = require("../services/mail.service");
+const { sendWelcomeEmail, verifyEmailServiceConfig } = require("../services/mail.service");
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -67,17 +67,28 @@ async function registerUserController(req, res) {
 
         console.log(`[AUTH] User registered successfully: ${user.username} (${user.email})`);
 
-        // Send Welcome & Thank You email to newly registered user
+        // Track email delivery status for transparency in logs and responses
+        let emailDelivery = {
+            status: "pending",
+            messageId: null,
+            error: null
+        };
+
         try {
-            console.log(`[AUTH] Dispatching welcome email to ${user.email}...`);
+            console.log(`[AUTH] Dispatching registration confirmation email to: ${user.email} (Username: ${user.username})...`);
             const mailResult = await sendWelcomeEmail(user.email, user.username);
-            console.log(`[AUTH] Welcome email successfully dispatched! Message ID: ${mailResult.id}`);
+            console.log(`[AUTH SUCCESS] Registration email successfully sent to ${user.email}! Message ID: ${mailResult.id}`);
+            emailDelivery.status = "sent";
+            emailDelivery.messageId = mailResult.id;
         } catch (emailErr) {
-            console.error("[AUTH ERROR] Failed to send welcome email:", emailErr);
+            console.error(`[AUTH ERROR] Failed to send registration email to ${user.email}:`, emailErr.message);
+            emailDelivery.status = "failed";
+            emailDelivery.error = emailErr.message;
         }
 
         return res.status(201).json({
             message: "User registered successfully. Please login to continue.",
+            emailDelivery,
             user: {
                 id: user._id,
                 username: user.username,
@@ -191,9 +202,27 @@ async function getMeController(req, res) {
     }
 }
 
+/**
+ * Controller to test and verify Gmail OAuth2 configuration
+ */
+async function verifyMailHealthController(req, res) {
+    try {
+        const result = await verifyEmailServiceConfig();
+        return res.status(result.ready ? 200 : 503).json(result);
+    } catch (err) {
+        console.error("Error in verifyMailHealthController:", err);
+        return res.status(500).json({
+            ready: false,
+            authenticated: false,
+            message: err.message
+        });
+    }
+}
+
 module.exports = {
     registerUserController,
     loginUserController,
     logoutUserController,
-    getMeController
+    getMeController,
+    verifyMailHealthController
 };
