@@ -1,11 +1,24 @@
 import axios from "axios";
 
-const API_HOST = typeof window !== "undefined" ? window.location.hostname : "localhost";
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, "")
+  : (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+      ? ""
+      : "http://localhost:3000");
 
 const api = axios.create({
-  baseURL: `http://${API_HOST}:3000/api/interview`,
+  baseURL: `${API_BASE}/api/interview`,
   withCredentials: true,
 });
+
+api.interceptors.request.use((config) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 
 /**
  * @description Service to generate interview report based on user self description, resume and job description.

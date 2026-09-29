@@ -1,10 +1,22 @@
 import axios from "axios";
 
-const API_HOST = typeof window !== "undefined" ? window.location.hostname : "localhost";
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, "")
+  : (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+      ? ""
+      : "http://localhost:3000");
 
 const api = axios.create({
-  baseURL: `http://${API_HOST}:3000/api/auth`,
+  baseURL: `${API_BASE}/api/auth`,
   withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export async function registerUser({ username, email, password }) {
@@ -29,6 +41,10 @@ export async function loginUser({ email, password }) {
       password,
     });
 
+    if (response.data?.token) {
+      localStorage.setItem("token", response.data.token);
+    }
+
     return response.data;
   } catch (error) {
     console.error("Error logging in user:", error);
@@ -39,8 +55,10 @@ export async function loginUser({ email, password }) {
 export async function logoutUser() {
   try {
     const response = await api.get("/logout");
+    localStorage.removeItem("token");
     return response.data;
   } catch (error) {
+    localStorage.removeItem("token");
     console.error("Error logging out user:", error);
     throw error;
   }
